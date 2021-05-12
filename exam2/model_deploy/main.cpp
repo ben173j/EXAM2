@@ -107,6 +107,7 @@ Config config;
 MQTT::Client<MQTTNetwork,Countdown>* CLIENT;
 
 
+
 /*
   ALL THE SUBROUTINES IN THIS .cpp
 */
@@ -259,7 +260,7 @@ void Decision(MQTT::Client<MQTTNetwork, Countdown>* client)
 //accumulation for ANGLE_FOR_PYTHON
 char ANGLE_FOR_PYTHON[1000]="\0";
 
-void PUBLISH_ANGLE(MQTT::Client<MQTTNetwork, Countdown>* client,float angle,int finish,int success)
+void PUBLISH_ANGLE(MQTT::Client<MQTTNetwork, Countdown>* client,int command,int tilt_number)
 {
     if(publish_enable==1){
 
@@ -267,48 +268,23 @@ void PUBLISH_ANGLE(MQTT::Client<MQTTNetwork, Countdown>* client,float angle,int 
         message_num++;
         MQTT::Message message;
         char buff[100];
-        if(finish==0){
-            if(success==0){
-                sprintf(buff,"FAIL! angle: %1.1f\r\n,angle");
-                strcat(ANGLE_FOR_PYTHON,buff);
-                return;     
-            }
-            else{
-              sprintf(buff, "PASS! angle!: %1.1f\r\n", angle);
-            }
-            
-            strcat(ANGLE_FOR_PYTHON,buff);
-            message.qos = MQTT::QOS0;
-            message.retained = false;
-            message.dup = false;
-            
-              message.payload = (void*) buff;
-              message.payloadlen = strlen(buff) + 1;
-              rc = client->publish(topic, message);
-          }
-        else if(finish==1){
-           for(int i=0;i<14;i++){
-            sprintf(buff, "Measured Angle: %1.1f\r\n", ANGLE_COLLECTION[i]);
-            message.qos = MQTT::QOS0;
-            message.retained = false;
-            message.dup = false;
-            message.payload = (void*) buff;
-            message.payloadlen = strlen(buff) + 1;
-            rc = client->publish(topic, message);
-            ThisThread :: sleep_for(200ms);
-           }
-            sprintf(buff, "-----FINISH-----");
-            message.qos = MQTT::QOS0;
-            message.retained = false;
-            message.dup = false;
-            message.payload = (void*) buff;
-            message.payloadlen = strlen(buff) + 1;
-            rc = client->publish(topic, message);
-            ThisThread :: sleep_for(200ms);         
-            
+    
+        if(command==0) sprintf(buff,"UP, %d",tilt_number);
+        else if(command==1) sprintf(buff,"DOWN",tilt_number);
+        else if(command ==2) sprintf(buff,"RIGHT",tilt_number);        
+        
+        if(tilt_number==14){
+          sprintf(buff,"STOP");
+          publish_enable=0;
         }
-        //ThisThread :: sleep_for(1s);
-
+        message.qos = MQTT::QOS0;
+        message.retained = false;
+        message.dup = false;
+            
+        message.payload = (void*) buff;
+        message.payloadlen = strlen(buff) + 1;
+        rc = client->publish(topic, message);
+      
         printf("rc:  %d\r\n", rc);
         printf("Publish message: %s\n\r", buff);
       }
@@ -357,6 +333,7 @@ void receive_shape(int Gindex)
   
 }
 
+int board_Data[1000];
 
 int Model() {
 
@@ -432,21 +409,22 @@ int Model() {
 
   error_reporter->Report("Set up successful...\n");
 
-  
+  int tilt_number=0;
   //t2.start(callback(&queue2, &EventQueue::dispatch_forever));
-  while (model_enable==1) {
+  while (tilt_number <14) {
     led3=!led3;
     // Attempt to read new data from the accelerometer
     got_data = ReadAccelerometer(error_reporter, model_input->data.f,
                                  input_length, should_clear_buffer);
-
+    
     // If there was no new data,
     // don't try to clear the buffer again and wait until next time
     if (!got_data) {
       should_clear_buffer = false;
       continue;
     }
-
+    
+    printf("input_length: %d \r\n",input_length);
     // Run inference, and report any error
     TfLiteStatus invoke_status = interpreter->Invoke();
     if (invoke_status != kTfLiteOk) {
@@ -462,7 +440,11 @@ int Model() {
     //button.rise(queue2.event(Decision,Lindex));
     if(gesture_index!=3){
       GIndex = gesture_index;
-      receive_shape(GIndex); 
+      receive_shape(GIndex);
+      if(gesture_index==0)  PUBLISH_ANGLE(CLIENT, 0,tilt_number);
+      else if(gesture_index==1) PUBLISH_ANGLE(CLIENT,1,tilt_number);
+      else if(gesture_index==2) PUBLISH_ANGLE(CLIENT,2,tilt_number);
+      tilt_number++;
     } 
     //button.fall(queue2.event(&Decision,&client,Lindex));
     //if(button.read()==0)break;
@@ -528,10 +510,14 @@ void UI (Arguments *in, Reply *out)   {
     t1.start(callback(&queue, &EventQueue::dispatch_forever));
     queue.call(Display);
 }
+int collection1x[100],collection1y[100],collection1z[100];
+int collection2x[100],collection2y[100],collection2z[100];
+//int collection1x[100],collection1y[100],collection1z[100];
 
 int angle_detection()
 {
   decision_enable=0;
+  //decision_enable=0;
   //printf("\r\n----INITIALIZING----\r\n");
   BSP_ACCELERO_Init();
   BSP_ACCELERO_AccGetXYZ(initDataXYZ);
@@ -622,7 +608,7 @@ int angle_detection()
             MA_uindex = 3;
             uLCD.printf("Threshold: %d",ThresholdAngle);
          }
-         PUBLISH_ANGLE(CLIENT, Measured_Angle,0,0);
+        // PUBLISH_ANGLE(CLIENT, Measured_Angle,0,0);
          uLCD.locate(0,MA_uindex);//position of the text
          uLCD.printf("INVALID! Angle:%1.1f",Measured_Angle);
          
@@ -636,7 +622,7 @@ int angle_detection()
          }
          uLCD.locate(0,MA_uindex);
          uLCD.printf("SUCCESS! Angle:%1.1f",Measured_Angle);
-         PUBLISH_ANGLE(CLIENT, Measured_Angle,0,1);
+       //  PUBLISH_ANGLE(CLIENT, Measured_Angle,0,1);
          ThisThread::sleep_for(300ms);
 
       }
@@ -653,7 +639,7 @@ int angle_detection()
 
   
     
-  PUBLISH_ANGLE(CLIENT,Measured_Angle,1,0);
+  //PUBLISH_ANGLE(CLIENT,Measured_Angle,1,0);
    //ThisThread::sleep_for(200ms);
    //BSP_ACCELERO_AccGetXYZ(initDataXYZ);
    //Z_movement = initDataXYZ[2];
@@ -706,19 +692,18 @@ int main()
 {
     config.seq_length=64;
     
-    config.consecutiveInferenceThresholds[0]=25;
+    config.consecutiveInferenceThresholds[0]=20;
     config.consecutiveInferenceThresholds[1]=10;
     config.consecutiveInferenceThresholds[2]=10;
 
     config.output_message[0]="UP";
     config.output_message[1]="DOWN";
-    config.output_message[2]="DOWN"; 
+    config.output_message[2]="RIGHT"; 
  
    // t1.start(callback(&queue, &EventQueue::dispatch_forever));
     //queue.call(Display);
 
-    RPCthread.start(callback(&RPCqueue, &EventQueue::dispatch_forever));
-    RPCqueue.call(calling_RPC);
+   
 
     wifi = WiFiInterface::get_default_instance();
     if (!wifi) {
@@ -769,7 +754,8 @@ int main()
     CLIENT = &client;
     Thread mqtt_threadPublish(osPriorityHigh);
     EventQueue mqtt_queuePublish;
-    
+    RPCthread.start(callback(&RPCqueue, &EventQueue::dispatch_forever));
+    RPCqueue.call(calling_RPC);
     mqtt_thread.start(callback(&mqtt_queue, &EventQueue::dispatch_forever));
     button.rise(mqtt_queue.event(&Decision, &client));
 
