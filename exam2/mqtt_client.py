@@ -27,6 +27,11 @@ def on_message(mosq, obj, msg):
         #s.write(bytes("\r\n/UI/delete \r\n",'UTF-8'))
         time.sleep(1)
         s.write(bytes("\r\n/Angle/run \r\n",'UTF-8'))
+    if string_msg == "Retrieve":
+        s.write(bytes("\r\n/Retrieve/run \r\n",'UTF-8'))
+
+    #if string_msg=="STOP":
+    #    s.write(bytes("\r\n"))
     
 
 def on_subscribe(mosq, obj, mid, granted_qos):
