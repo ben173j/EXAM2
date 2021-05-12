@@ -72,6 +72,8 @@ EventQueue queue(32 * EVENTS_EVENT_SIZE);
 EventQueue queue2(32 * EVENTS_EVENT_SIZE);
 Thread t1,t2,t3;
 
+Thread retrieve;
+EventQueue retrieve_queue;
 
 //FOR MQTT AND WIFI
 // GLOBAL VARIABLES
@@ -115,6 +117,8 @@ MQTT::Client<MQTTNetwork,Countdown>* CLIENT;
 int Model(void);
 //Used to measure the angle of inclination 
 int angle_detection(void);
+//Used for retrieving
+int Retrieve(void);
 //USED for display in uLCD
 int Display(void);
 //Used to move line in uLCD
@@ -678,7 +682,9 @@ void Angle (Arguments *in, Reply *out)   {
     queue.call(angle_detection);
 }
 
-
+void Retrieve Arguments *in, Reply *out){
+  publish_all(CLIENT);
+}
 
 
 
