@@ -333,7 +333,7 @@ void receive_shape(int Gindex)
   
 }
 
-int board_Data[1000];
+int board_Data[210];
 
 int Model() {
 
@@ -423,6 +423,7 @@ int Model() {
       should_clear_buffer = false;
       continue;
     }
+    
     
     printf("input_length: %d \r\n",input_length);
     // Run inference, and report any error
