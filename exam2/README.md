@@ -8,3 +8,4 @@ https://github.com/ben173j/EXAM2/tree/master/exam2/model_deploy
 config.h needs to be reconfigured when IP address changes.
 model.cpp is the coordinates recorded in gesture training process.
 
+con\gig
